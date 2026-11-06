@@ -1,5 +1,7 @@
 # QR Studio ✨
 
+> **[✨ Try it live](https://ashishdhillon.github.io/qr-studio/)**
+
 Colourful, shareable QR codes from any link. One HTML file, no server, no tracking: everything runs in your browser.
 
 - Gradient or solid dots, seven colour presets, custom background (or transparent)
