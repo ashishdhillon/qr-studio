@@ -1,0 +1,14 @@
+const Q=require(require('path').join(__dirname,'..','src','engine.js'));const fs=require('fs');
+fs.mkdirSync('/tmp/qrout',{recursive:true});
+const base={text:"https://ashishdhillon.github.io/prompt-heist/?ref=campus&x=ñ✓"};
+const cases=[];
+for(const shape of ['square','rounded','dots','diamond']) for(const eye of ['square','rounded','circle','leaf']) cases.push([`shape_${shape}_${eye}`,{shape,eyeShape:eye}]);
+for(const p of Object.keys(Q.PRESETS)) cases.push([`preset_${p}`,Q.PRESETS[p]]);
+cases.push(['logo_emoji',{logoType:'emoji',logoValue:'🔥'}]);
+cases.push(['logo_img',{logoType:'image',logoValue:'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22%3E%3Ccircle cx=%225%22 cy=%225%22 r=%224%22 fill=%22red%22/%3E%3C/svg%3E'}]);
+cases.push(['caption',{caption:'SCAN ME',shape:'dots'}]);
+cases.push(['transp',{transparent:true,c1:'#111',fillMode:'solid'}]);
+cases.push(['bigtext',{text:'x'.repeat(300)}]);
+for(const [name,o] of cases) fs.writeFileSync(`/tmp/qrout/${name}.svg`,Q.render({...base,...o}));
+console.log(cases.length,'svgs');
+console.log(JSON.stringify(Q.check(Q.PRESETS.Neon)),JSON.stringify(Q.check({c1:'#ccc',fillMode:'solid',bg:'#fff'})).slice(0,80));
