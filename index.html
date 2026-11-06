@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Studio – colourful QR codes from any link</title>
+<title>QR Studio – colourful QR codes for links, Wi-Fi and contacts</title>
 <style>
 :root{--ink:#1b1740;--dim:#6b6a8a;--line:#e6e3f5;--card:#fff;--a:#7c3aed;--b:#ec4899;--c:#f59e0b}
 *{box-sizing:border-box}
@@ -50,14 +50,34 @@ input[type=range]{width:100%;accent-color:var(--a)}
 <body>
 <header>
   <h1>QR <span>Studio</span> ✨</h1>
-  <p>Paste a link, make it look amazing, download. Everything happens in your browser.</p>
+  <p>Make a link, Wi-Fi, contact or email QR look amazing, then download. Everything happens in your browser.</p>
 </header>
 <div class="wrap">
  <div>
   <div class="card">
-    <h2>1 · Your link or text</h2>
-    <input type="text" id="text" placeholder="yourwebsite.com or any text" autocomplete="off" spellcheck="false">
-    <div class="tiny">Tip: "yourwebsite.com" works; we add https:// for you.</div>
+    <h2>1 · What is it for?</h2>
+    <div class="seg" id="mode"><button data-v="link">🔗 Link</button><button data-v="wifi">📶 Wi-Fi</button><button data-v="contact">👤 Contact</button><button data-v="email">✉️ Email</button></div>
+    <div id="m_link">
+      <label>Link or text</label>
+      <input type="text" id="text" placeholder="yourwebsite.com or any text" autocomplete="off" spellcheck="false">
+      <div class="tiny">Tip: "yourwebsite.com" works; we add https:// for you.</div>
+    </div>
+    <div id="m_wifi" hidden>
+      <label>Network name (SSID)</label><input type="text" id="w_ssid" autocomplete="off">
+      <label>Password</label><input type="text" id="w_pass" autocomplete="off">
+      <div class="row"><div><label>Security</label><select id="w_sec"><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">No password</option></select></div>
+      <div><label class="chk" style="margin-top:34px"><input type="checkbox" id="w_hidden"> Hidden network</label></div></div>
+    </div>
+    <div id="m_contact" hidden>
+      <div class="row"><div><label>First name</label><input type="text" id="k_first"></div><div><label>Last name</label><input type="text" id="k_last"></div></div>
+      <div class="row"><div><label>Phone</label><input type="text" id="k_phone" inputmode="tel"></div><div><label>Email</label><input type="text" id="k_email" inputmode="email"></div></div>
+      <div class="row"><div><label>Organisation</label><input type="text" id="k_org"></div><div><label>Job title</label><input type="text" id="k_title"></div></div>
+      <label>Website</label><input type="text" id="k_url">
+    </div>
+    <div id="m_email" hidden>
+      <label>To</label><input type="text" id="e_to" inputmode="email"><label>Subject</label><input type="text" id="e_subject"><label>Message</label><input type="text" id="e_body">
+    </div>
+    <div class="tiny" id="privacy" hidden>For privacy, Wi-Fi, contact and email details are never put in the share link; only the style is.</div>
   </div>
   <div class="card">
     <h2>2 · Pick a vibe</h2>
@@ -2453,6 +2473,38 @@ var QRStudio = (function (qrcode) {
     return r;
   }
 
+
+  // ---- payload builders for the content modes ----
+  function wifiEsc(v) { return String(v || "").replace(/([\\;,:"])/g, "\\$1"); }
+  function vcardEsc(v) { return String(v || "").replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n"); }
+  function payload(mode, fld) {
+    fld = fld || {};
+    if (mode === "wifi") {
+      var sec = fld.security || "WPA";
+      return "WIFI:T:" + (sec === "nopass" ? "nopass" : sec) + ";S:" + wifiEsc(fld.ssid) + ";" + (sec === "nopass" ? "" : "P:" + wifiEsc(fld.password) + ";") + (fld.hidden ? "H:true;" : "") + ";";
+    }
+    if (mode === "contact") {
+      var L = ["BEGIN:VCARD", "VERSION:3.0"];
+      var first = (fld.first || "").trim(), last = (fld.last || "").trim();
+      L.push("N:" + vcardEsc(last) + ";" + vcardEsc(first) + ";;;");
+      L.push("FN:" + vcardEsc((first + " " + last).trim()));
+      if (fld.org) L.push("ORG:" + vcardEsc(fld.org));
+      if (fld.title) L.push("TITLE:" + vcardEsc(fld.title));
+      if (fld.phone) L.push("TEL;TYPE=CELL:" + vcardEsc(fld.phone));
+      if (fld.email) L.push("EMAIL:" + vcardEsc(fld.email));
+      if (fld.url) L.push("URL:" + vcardEsc(fld.url));
+      L.push("END:VCARD");
+      return L.join("\r\n");
+    }
+    if (mode === "email") {
+      var q = [];
+      if (fld.subject) q.push("subject=" + encodeURIComponent(fld.subject));
+      if (fld.body) q.push("body=" + encodeURIComponent(fld.body));
+      return "mailto:" + (fld.to || "").trim() + (q.length ? "?" + q.join("&") : "");
+    }
+    return fld.text || "";
+  }
+
   function rr(x, y, w, h, r) {
     var a = r[0], b = r[1], c = r[2], d = r[3];
     var s = "M" + f(x + a) + " " + f(y) + "H" + f(x + w - b);
@@ -2563,7 +2615,7 @@ var QRStudio = (function (qrcode) {
     return svg + "</svg>";
   }
 
-  return { render: render, check: check, PRESETS: PRESETS, DEFAULTS: DEFAULTS, withDefaults: withDefaults, contrast: contrast, matrix: matrix };
+  return { payload: payload, render: render, check: check, PRESETS: PRESETS, DEFAULTS: DEFAULTS, withDefaults: withDefaults, contrast: contrast, matrix: matrix };
 })(typeof qrcode !== "undefined" ? qrcode : require("./qrcode.js"));
 
 </script>
@@ -2571,13 +2623,18 @@ var QRStudio = (function (qrcode) {
 (function(){
   if (typeof document==="undefined") return;
   var Q=QRStudio, $=function(i){return document.getElementById(i)};
-  var S=Q.withDefaults({text:""});
+  var S=Q.withDefaults({text:""}); S.mode="link"; var F={security:"WPA"};
   var imgData="", act={};
 
   function normalize(t){ t=(t||"").trim(); if(!t) return "https://example.com";
     if(/^[a-z][a-z0-9+.-]*:/i.test(t)) return t;
     if(/^[^\s]+\.[a-z]{2,}([\/?#:].*)?$/i.test(t)) return "https://"+t; return t; }
-  function opts(){ var o={}; for(var k in S) o[k]=S[k]; o.text=normalize(S.text);
+  function currentText(){
+    if(S.mode==="link") return normalize(S.text);
+    var v=Q.payload(S.mode,F);
+    return v;
+  }
+  function opts(){ var o={}; for(var k in S) if(k!=="mode") o[k]=S[k]; o.text=currentText();
     if(S.logoType==="emoji") o.logoValue=S.emoji||""; else if(S.logoType==="image") o.logoValue=imgData; else o.logoValue="";
     return o; }
 
@@ -2588,7 +2645,8 @@ var QRStudio = (function (qrcode) {
     // sync controls
     ["c1","c2","c3","bg","eyeOuter","eyeInner"].forEach(function(k){ $(k).value=S[k]||"#000000"; });
     $("angle").value=S.angle; $("dotScale").value=S.dotScale; $("logoScale").value=S.logoScale; $("pad").value=S.pad; $("bgRadius").value=S.bgRadius;
-    $("transparent").checked=S.transparent; $("eyeMatch").checked=S.eyeMatch; $("caption").value=S.caption; $("emoji").value=S.emoji||""; $("text").value=S.text===undefined?"":S.text;
+    $("transparent").checked=S.transparent; $("eyeMatch").checked=S.eyeMatch; $("caption").value=S.caption; $("emoji").value=S.emoji||""; if(document.activeElement!==$("text")) $("text").value=S.text===undefined?"":S.text;
+    ["link","wifi","contact","email"].forEach(function(m){ $("m_"+m).hidden=S.mode!==m; }); $("privacy").hidden=S.mode==="link"; [].forEach.call($("mode").children,function(b){ b.classList.toggle("on",b.dataset.v===S.mode); });
     var g=S.fillMode==="gradient"; $("c2w").hidden=!g; $("c3w").hidden=!g; $("angleW").hidden=!g;
     $("eyeColors").hidden=S.eyeMatch; $("dsW").hidden=S.shape==="square";
     $("emojiW").hidden=S.logoType!=="emoji"; $("imgW").hidden=S.logoType!=="image"; $("lsW").hidden=S.logoType==="none";
@@ -2596,13 +2654,17 @@ var QRStudio = (function (qrcode) {
     [].forEach.call($("presets").children,function(b){ var p=Q.PRESETS[b.dataset.n]; b.classList.toggle("on",p.c1===S.c1&&p.c2===S.c2&&p.bg===S.bg); });
     save();
   }
-  var tmr; function save(){ clearTimeout(tmr); tmr=setTimeout(function(){ try{ var o={}; for(var k in S) o[k]=S[k]; history.replaceState(null,"","#"+btoa(unescape(encodeURIComponent(JSON.stringify(o))))); }catch(e){} },300); }
+  var tmr; function save(){ clearTimeout(tmr); tmr=setTimeout(function(){ try{ var o={}; for(var k in S) if(k!=="mode") o[k]=S[k]; history.replaceState(null,"","#"+btoa(unescape(encodeURIComponent(JSON.stringify(o))))); }catch(e){} },300); }
   function load(){ try{ if(location.hash.length>1){ var o=JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(1))))); for(var k in o) if(k in Q.DEFAULTS||k in Q.PRESETS.Ink||k==="emoji") S[k]=o[k]; } }catch(e){} }
 
   function bind(id,key,num){ $(id).addEventListener("input",function(){ S[key]=num?parseFloat(this.value):this.value; paint(); }); }
   ["c1","c2","c3","bg","eyeOuter","eyeInner","caption"].forEach(function(k){ bind(k,k); });
   [["angle",1],["dotScale",1],["logoScale",1],["pad",1],["bgRadius",1]].forEach(function(a){ bind(a[0],a[0],true); });
   $("text").addEventListener("input",function(){ S.text=this.value; paint(); });
+  $("mode").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; S.mode=b.dataset.v; paint(); });
+  [["w_ssid","ssid"],["w_pass","password"],["k_first","first"],["k_last","last"],["k_phone","phone"],["k_email","email"],["k_org","org"],["k_title","title"],["k_url","url"],["e_to","to"],["e_subject","subject"],["e_body","body"]].forEach(function(a){ $(a[0]).addEventListener("input",function(){ F[a[1]]=this.value; paint(); }); });
+  $("w_sec").addEventListener("change",function(){ F.security=this.value; paint(); });
+  $("w_hidden").addEventListener("change",function(){ F.hidden=this.checked; paint(); });
   $("emoji").addEventListener("input",function(){ S.emoji=this.value; paint(); });
   $("transparent").addEventListener("change",function(){ S.transparent=this.checked; paint(); });
   $("eyeMatch").addEventListener("change",function(){ S.eyeMatch=this.checked; paint(); });

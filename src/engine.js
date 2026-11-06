@@ -27,6 +27,38 @@ var QRStudio = (function (qrcode) {
     return r;
   }
 
+
+  // ---- payload builders for the content modes ----
+  function wifiEsc(v) { return String(v || "").replace(/([\\;,:"])/g, "\\$1"); }
+  function vcardEsc(v) { return String(v || "").replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n"); }
+  function payload(mode, fld) {
+    fld = fld || {};
+    if (mode === "wifi") {
+      var sec = fld.security || "WPA";
+      return "WIFI:T:" + (sec === "nopass" ? "nopass" : sec) + ";S:" + wifiEsc(fld.ssid) + ";" + (sec === "nopass" ? "" : "P:" + wifiEsc(fld.password) + ";") + (fld.hidden ? "H:true;" : "") + ";";
+    }
+    if (mode === "contact") {
+      var L = ["BEGIN:VCARD", "VERSION:3.0"];
+      var first = (fld.first || "").trim(), last = (fld.last || "").trim();
+      L.push("N:" + vcardEsc(last) + ";" + vcardEsc(first) + ";;;");
+      L.push("FN:" + vcardEsc((first + " " + last).trim()));
+      if (fld.org) L.push("ORG:" + vcardEsc(fld.org));
+      if (fld.title) L.push("TITLE:" + vcardEsc(fld.title));
+      if (fld.phone) L.push("TEL;TYPE=CELL:" + vcardEsc(fld.phone));
+      if (fld.email) L.push("EMAIL:" + vcardEsc(fld.email));
+      if (fld.url) L.push("URL:" + vcardEsc(fld.url));
+      L.push("END:VCARD");
+      return L.join("\r\n");
+    }
+    if (mode === "email") {
+      var q = [];
+      if (fld.subject) q.push("subject=" + encodeURIComponent(fld.subject));
+      if (fld.body) q.push("body=" + encodeURIComponent(fld.body));
+      return "mailto:" + (fld.to || "").trim() + (q.length ? "?" + q.join("&") : "");
+    }
+    return fld.text || "";
+  }
+
   function rr(x, y, w, h, r) {
     var a = r[0], b = r[1], c = r[2], d = r[3];
     var s = "M" + f(x + a) + " " + f(y) + "H" + f(x + w - b);
@@ -137,6 +169,6 @@ var QRStudio = (function (qrcode) {
     return svg + "</svg>";
   }
 
-  return { render: render, check: check, PRESETS: PRESETS, DEFAULTS: DEFAULTS, withDefaults: withDefaults, contrast: contrast, matrix: matrix };
+  return { payload: payload, render: render, check: check, PRESETS: PRESETS, DEFAULTS: DEFAULTS, withDefaults: withDefaults, contrast: contrast, matrix: matrix };
 })(typeof qrcode !== "undefined" ? qrcode : require("./qrcode.js"));
 if (typeof module !== "undefined") module.exports = QRStudio;

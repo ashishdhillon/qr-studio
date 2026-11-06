@@ -4,6 +4,7 @@
 
 Colourful, shareable QR codes from any link. One HTML file, no server, no tracking: everything runs in your browser.
 
+- Four content modes: link, Wi-Fi network, contact card (vCard) and email; Wi-Fi, contact and email details never go into the share link
 - Gradient or solid dots, seven colour presets, custom background (or transparent)
 - Dot shapes (square, rounded, dots, diamond) and corner-eye shapes (square, rounded, circle, leaf)
 - Emoji or image in the centre, and a caption such as "SCAN ME"
